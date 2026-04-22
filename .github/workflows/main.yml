@@ -1,0 +1,98 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: ["main"]
+
+env:
+  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/internal-utility-service
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: flake8 .
+      - run: pytest -v
+
+  build_and_push:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Set tags
+        run: |
+          echo "VERSION=v1.0.${{ github.run_number }}" >> $GITHUB_ENV
+          echo "SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      - name: Build image
+        run: docker build -t $IMAGE_NAME:${{ env.VERSION }} .
+
+      - name: Tag image
+        run: |
+          docker tag $IMAGE_NAME:${{ env.VERSION }} $IMAGE_NAME:latest
+          docker tag $IMAGE_NAME:${{ env.VERSION }} $IMAGE_NAME:${{ env.SHA }}
+
+      - name: Push images
+        run: |
+          docker push $IMAGE_NAME:${{ env.VERSION }}
+          docker push $IMAGE_NAME:latest
+          docker push $IMAGE_NAME:${{ env.SHA }}
+
+  deploy:
+    needs: build_and_push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Blue-Green Deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            IMAGE=${{ secrets.DOCKER_USERNAME }}/internal-utility-service:latest
+
+            # Detect active container
+            if docker ps --format '{{.Names}}' | grep -q internal-app-blue; then
+              NEW=green
+              OLD=blue
+              PORT=5001
+            else
+              NEW=blue
+              OLD=green
+              PORT=5002
+            fi
+
+            echo "Deploying $NEW..."
+
+            docker pull $IMAGE
+
+            docker run -d \
+              --name internal-app-$NEW \
+              --restart=always \
+              -p $PORT:5000 \
+              $IMAGE
+
+            echo "Waiting for health check..."
+            sleep 10
+
+            # Switch Nginx upstream
+            sudo sed -i "s/internal-app-$OLD/internal-app-$NEW/" /etc/nginx/sites-available/default
+            sudo systemctl reload nginx
+
+            echo "Traffic switched to $NEW"
+
+            # Old container kept for rollback
