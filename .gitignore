@@ -1,0 +1,45 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Flask instance folder (contains config, secrets, db)
+instance/
+
+# Environment variables / secrets
+.env
+*.env
+
+# SQLite databases (common in Flask apps)
+*.db
+*.sqlite3
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Logs
+*.log
+logs/
+
+# Unit test / coverage
+.coverage
+.coverage.*
+.pytest_cache/
+.cache/
+
+# IDEs / editors
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
