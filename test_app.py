@@ -1,5 +1,6 @@
 import pytest
 from app import app
+from utils import calculate_internal_metric
 
 
 @pytest.fixture
@@ -74,9 +75,6 @@ def test_health_endpoint(client):
 
     assert response.status_code == 200
     assert data["status"] == "healthy"
-
-
-from utils import calculate_internal_metric
 
 
 def test_metric_valid():

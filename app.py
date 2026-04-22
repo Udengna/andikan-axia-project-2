@@ -2,7 +2,9 @@ from flask import Flask, jsonify
 from database import get_users
 import os
 
+
 app = Flask(__name__)
+
 
 @app.route("/")
 def home():
@@ -11,9 +13,11 @@ def home():
         "environment": os.getenv("ENVIRONMENT", "unknown")
     })
 
+
 @app.route("/users")
 def users():
     return jsonify(get_users())
+
 
 @app.route("/health")
 def health():
