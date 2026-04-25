@@ -21,7 +21,10 @@ def users():
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "healthy"}), 200
+    return jsonify({
+        "status": "healthy",
+        "environment": os.getenv("VERSION", "unknown")
+    }), 200
 
 
 if __name__ == "__main__":
