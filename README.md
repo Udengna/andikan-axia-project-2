@@ -130,37 +130,43 @@ Run multiple EC2 instances
 
 This enables horizontal scaling and high availability.
 
-KNOWN LIMITATIONS
-
-Single EC2 instance creates a single point of failure
-Limited monitoring and logging
-IAM permissions could be further restricted
-
-FUTURE IMPROVEMENTS
-
-Migrate to Kubernetes
-Add monitoring tools (Prometheus, Grafana)
-Implement Web Application Firewall (WAF)
-Use Infrastructure as Code (Terraform)
-
-REFLECTION SUMMARY
-
-Multi-stage Docker builds improve efficiency and security
-Blue-green deployment ensures zero downtime
-Separating secrets improves security posture
-CI/CD enables full automation and reproducibility
-
-SUBMISSION EVIDENCE
-
-Include screenshots of:
-
-CI/CD pipeline success and failure
-Docker Hub image tags
-Running containers on EC2
-HTTPS working with valid SSL certificate
-Nginx configuration
-Blue-green deployment switch
-
-CONCLUSION
-
 This project demonstrates the transition from a manual and insecure development setup to an automated, secure, and production-ready deployment system, focusing on automation, security, reliability, and scalability.
+
+REFLECTION ANSWERS
+
+Why did you structure the Dockerfile the way you did?
+
+So basically, I wanted the Docker image to be small, secure, and easy to rebuild. I used a slim Python image to avoid unnecessary bloat. I installed dependencies first so Docker can cache that layer and speed things up. I also made sure the app runs as a non-root user for security. Then I used a .dockerignore to avoid copying junk files, and added a health check so we can tell if the app is actually running. The idea was just to keep things clean and production-ready.
+
+Why multi-stage?
+
+Multi-stage just helps keep things tidy. I used one stage to build everything, and another for running the app. That way, the final image doesn’t include build tools or anything extra. It makes the image smaller and more secure.
+
+Why that tagging strategy?
+
+I used three tags so it’s easier to manage deployments.
+“latest” is just the newest version.
+The version tag (like v1.0.X) helps track releases.
+And the commit SHA ties the image to a specific piece of code.
+
+So if something breaks, I can quickly roll back or figure out exactly what changed.
+
+Why GitHub Secrets + AWS Secrets Manager?
+
+I split secrets based on where they’re used. GitHub handles CI/CD stuff like Docker login and SSH keys. But things like database credentials are stored in AWS Secrets Manager and pulled at runtime. That way, sensitive data isn’t exposed in the pipeline or inside the code.
+
+How does your deployment avoid downtime?
+
+I used a blue-green setup. Basically, I run two versions of the app at the same time. One is live, and the other gets updated. Once the new one passes a health check, Nginx switches traffic to it. Since the old version is still running during the switch, users don’t notice anything. No downtime.
+
+How would you scale to multiple EC2 instances?
+
+If traffic grows, I’d put a load balancer in front and run multiple EC2 instances. Then use auto scaling so more instances spin up when needed. Each instance would run the same Docker image and pull configs from a shared place.
+
+What security risks still exist?
+
+There are still a few risks. Everything is on one EC2 instance, so if that goes down, the app is down. Containers also share the host system, which has some risk. IAM permissions could be tighter, and there’s no WAF or advanced monitoring yet. So it’s good, but not perfect.
+
+How would you evolve this into Kubernetes?
+
+If I move this to Kubernetes, I’d let it handle most of the heavy lifting. Deployments would replace my manual blue-green setup, and an Ingress controller would replace Nginx. Kubernetes would also handle scaling and self-healing automatically. It basically takes what I built and makes it more scalable and easier to manage.
